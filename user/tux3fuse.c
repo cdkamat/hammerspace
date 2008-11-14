@@ -416,12 +416,12 @@ static void tux3_init(void *data, struct fuse_conn_info *conn)
 {
 	const char *volname = data;
 	int fd;
-	if (!(fd = open(volname, O_RDWR, S_IRWXU)))
+	if ((fd = open(volname, O_RDWR, S_IRWXU)) < 0)
 		error("volume %s not found", volname);
 
 	volsize = 0;
 	if (fdsize64(fd, &volsize))
-		error("fdsize64 failed for '%s' (%s)", volname, strerror(errno));
+		error("fdsize64 failed for '%s' (%s) %i", volname, strerror(errno), fd);
 	dev = malloc(sizeof(*dev));
 	*dev = (struct dev){ .fd = fd, .bits = 12 };
 	init_buffers(dev, 1<<20);
@@ -741,7 +741,6 @@ int main(int argc, char *argv[])
 
 	if (fuse_parse_cmdline(&args, &mountpoint, NULL, &foreground) != -1)
 	{
-		int fd = open(mountpoint, O_RDONLY);
 		struct fuse_chan *fc = fuse_mount(mountpoint, &args);
 		if (fc)
 		{
@@ -756,8 +755,6 @@ int main(int argc, char *argv[])
 				{
 					fuse_session_add_chan(fs, fc);
 					fuse_daemonize(foreground);
-					fchdir(fd);
-					close(fd);
 					err = fuse_session_loop(fs);
 					fuse_remove_signal_handlers(fs);
 					fuse_session_remove_chan(fc);
