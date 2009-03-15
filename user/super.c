@@ -11,7 +11,7 @@
 #include "tux3.h"
 
 #ifndef trace
-#define trace trace_on
+#define trace trace_off
 #endif
 
 #include "kernel/commit.c"
@@ -27,6 +27,7 @@ int load_sb(struct sb *sb)
 	if (err)
 		return err;
 	init_btree(itable_btree(sb), sb, iroot, &itable_ops);
+	init_btree(&sb->htree, sb, sb->htree.root, &htree_ops);
 	return 0;
 }
 
@@ -90,11 +91,15 @@ int make_tux3(struct sb *sb)
 	int reserve = 1 << (sb->blockbits > 13 ? 0 : 13 - sb->blockbits);
 	for (int i = 0; i < reserve; i++) {
 		block_t block = balloc_from_range(sb, i, 1, 1);
-		trace("reserve %Lx", (L)block); // error ???
+		trace_on("reserve %Lx", (L)block); // error ???
 	}
 
 	trace("create inode table");
 	err = new_btree(itable_btree(sb), sb, &itable_ops);
+	if (err)
+		goto eek;
+	trace("create hash table");/*  DREAMZ */
+	err = new_btree(&sb->htree, sb, &htree_ops);
 	if (err)
 		goto eek;
 	sb->bitmap->i_size = (sb->volblocks + 7) >> 3;

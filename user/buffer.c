@@ -99,6 +99,7 @@ void show_buffers_state(unsigned state)
 	show_buffer_list(buffers + state);
 }
 
+
 static inline void set_buffer_state_list(struct buffer_head *buffer, unsigned state, struct list_head *list)
 {
 	list_move_tail(&buffer->link, list);
@@ -347,6 +348,8 @@ int flush_list(struct list_head *list)
 		assert(buffer_dirty(buffer));
 		if ((err = buffer->map->io(buffer, 1)))
 			break;
+		if(buffer->state != BUFFER_CLEAN)
+			set_buffer_clean(buffer);
 		assert(buffer_clean(buffer));
 	}
 	return err;

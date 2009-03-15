@@ -592,7 +592,7 @@ static int insert_leaf(struct cursor *cursor, tuxkey_t childkey, struct buffer_h
 	btree->root.depth++;
 	level_root_add(cursor, newbuf, newroot->entries + 1 + !left_node);
 	mark_btree_dirty(btree);
-	cursor_check(cursor);
+	//cursor_check(cursor);
 	return 0;
 eek:
 	release_cursor(cursor);

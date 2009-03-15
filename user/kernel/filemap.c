@@ -9,13 +9,16 @@
  */
 
 #include "tux3.h"
-
+#include<openssl/sha.h>
+#include<string.h>
+#include "dedup.c"
 #ifndef trace
-#define trace trace_on
+#define trace trace_off
 #endif
 
 #define SEG_HOLE	(1 << 0)
 #define SEG_NEW		(1 << 1)
+#define SEG_DUP         (1 << 2)
 
 struct seg { block_t block; unsigned count; unsigned state; };
 
@@ -32,6 +35,7 @@ static int map_region(struct inode *inode, block_t start, unsigned count, struct
 {
 	struct sb *sb = tux_sb(inode->i_sb);
 	struct btree *btree = &tux_inode(inode)->btree;
+	unsigned char *hash;
 	int segs = 0;
 
 	assert(max_segs > 0);
@@ -62,7 +66,7 @@ static int map_region(struct inode *inode, block_t start, unsigned count, struct
 	if (limit > next_key(cursor, btree->root.depth))
 		limit = next_key(cursor, btree->root.depth);
 	struct dleaf *leaf = bufdata(cursor_leafbuf(cursor));
-	dleaf_dump(btree, leaf);
+	//dleaf_dump(btree, leaf);
 
 	struct dwalk *walk = &(struct dwalk){ };
 	block_t index = start, seg_start, block;
@@ -129,34 +133,58 @@ static int map_region(struct inode *inode, block_t start, unsigned count, struct
 		map[0].count = count;
 		map[0].state = SEG_HOLE;
 	}
+	block_t blk = -1;
+	struct buffer_head *buffer;
 	for (int i = 0; i < segs; i++) {
 		if (map[i].state == SEG_HOLE) {
-			count = map[i].count;
-			if ((err = balloc(sb, count, &block))) { // goal ???
-				/*
-				 * Out of space on file data allocation.  It happens.  Tread
-				 * carefully.  We have not stored anything in the btree yet,
-				 * so we free what we allocated so far.  We need to leave the
-				 * user with a nice ENOSPC return and all metadata consistent
-				 * on disk.  We better have reserved everything we need for
-				 * metadata, just giving up is not an option.
-				 */
-				/*
-				 * Alternatively, we can go ahead and try to record just what
-				 * we successfully allocated, then if the update fails on no
-				 * space for btree splits, free just the blocks for extents
-				 * we failed to store.
-				 */
-				segs = err;
-				goto out_create;
+			if( inode->inum > 4 && inode->inum != 10 && inode->inum != 13) {
+				buffer = (blockget(mapping(inode),start)); /* DREAMZ */
+				hash = (unsigned char *)malloc(sizeof(unsigned char) * SHA_DIGEST_LENGTH);
+				hash = SHA1(bufdata(buffer),inode->i_sb->blocksize,hash); 
+				brelse(buffer);
+				blk = hash_lookup(inode, hash);
 			}
-			trace("fill in %Lx/%i ", (L)block, count);
-			map[i] = (struct seg){
-				.block = block,
-				.count = count,
-				/* if create == 2, buffer should be dirty */
-				.state = create == 2 ? 0 : SEG_NEW,
-			};
+			if(blk == -1){
+				count = map[i].count;
+				if ((err = balloc(sb, count, &block))) { // goal ???
+					/*
+					 * Out of space on file data allocation.  It happens.  Tread
+					 * carefully.  We have not stored anything in the btree yet,
+					 * so we free what we allocated so far.  We need to leave the
+					 * user with a nice ENOSPC return and all metadata consistent
+					 * on disk.  We better have reserved everything we need for
+					 * metadata, just giving up is not an option.
+					 */
+					/*
+					 * Alternatively, we can go ahead and try to record just what
+					 * we successfully allocated, then if the update fails on no
+					 * space for btree splits, free just the blocks for extents
+					 * we failed to store.
+					 */
+					segs = err;
+					goto out_create;
+				}
+				if(inode->inum > 4 && inode->inum != 13 && inode->inum != 10){
+					make_hash_entry(inode, hash, block);
+					free(hash);
+				}
+				trace("fill in %Lx/%i ", (L)block, count);
+				map[i] = (struct seg){
+					.block = block,
+					.count = count,
+					/* if create == 2, buffer should be dirty */
+					.state = create == 2 ? 0 : SEG_NEW,				
+				};
+			
+			}
+			else{
+				if(inode->inum > 4 && inode->inum != 13 && inode->inum != 10)
+					free(hash);
+				trace("Duplicate found");
+				map[i] = (struct seg){ .block = blk, .count = count, .state = SEG_DUP, };
+		        }
+			
+			
 		}
 	}
 	/* Go back to region start and pack in new segs */
@@ -191,9 +219,9 @@ static int map_region(struct inode *inode, block_t start, unsigned count, struct
 			continue;
 		}
 		trace("pack 0x%Lx => %Lx/%x", (L)index, (L)map[i].block, map[i].count);
-		dleaf_dump(btree, leaf);
+		//dleaf_dump(btree, leaf);
 		dwalk_add(&headwalk, index, make_extent(map[i].block, map[i].count));
-		dleaf_dump(btree, leaf);
+		//dleaf_dump(btree, leaf);
 		index += map[i].count;
 	}
 	if (tail) {

@@ -12,6 +12,7 @@
 int unpack_sb(struct sb *sb, struct disksuper *super, struct root *iroot, int silent)
 {
 	u64 iroot_val = from_be_u64(super->iroot);
+	u64 hroot_val = from_be_u64(super->hroot);/*  DREAMZ */
 	if (memcmp(super->magic, (char[])SB_MAGIC, sizeof(super->magic))) {
 		if (!silent)
 			printf("invalid superblock [%Lx]\n",
@@ -35,8 +36,9 @@ int unpack_sb(struct sb *sb, struct disksuper *super, struct root *iroot, int si
 	sb->atomgen = from_be_u32(super->atomgen);
 	sb->freeatom = from_be_u32(super->freeatom);
 	sb->dictsize = from_be_u64(super->dictsize);
-
+	sb->entries_per_bucket = (sb->blocksize - offsetof(struct bucket,entries)) / sizeof(struct bucket_entry);
 	*iroot = unpack_root(iroot_val);
+	sb->htree.root = unpack_root(hroot_val);
 
 	return 0;
 }
@@ -51,4 +53,5 @@ void pack_sb(struct sb *sb, struct disksuper *super)
 	super->freeatom = to_be_u32(sb->freeatom); // probably does not belong here
 	super->dictsize = to_be_u64(sb->dictsize); // probably does not belong here
 	super->iroot = to_be_u64(pack_root(&itable_btree(sb)->root));
+	super->hroot = to_be_u64(pack_root(&sb->htree.root));/*  DREAMZ  */	
 }

@@ -7,7 +7,7 @@ CFLAGS  += -m32
 endif
 
 CFLAGS += -std=gnu99 -Wall -g -rdynamic -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64
-CFLAGS += -Wall -Wextra -Werror
+CFLAGS += -Wall -Wextra -Werror -lssl
 CFLAGS += -Wno-unused-parameter -Wno-sign-compare -Wno-missing-field-initializers
 CFLAGS += $(UCFLAGS)
 
@@ -19,8 +19,8 @@ VG=valgrind --error-exitcode=200 --leak-check=full
 
 TESTDIR = .
 
-testbin = buffer balloc dleaf ileaf iattr xattr btree dir filemap inode commit
-binaries = $(testbin) tux3 tux3fuse tux3graph
+testbin = buffer balloc dleaf ileaf iattr xattr btree dir filemap inode commit dedup
+binaries = $(testbin) tux3 tux3fuse
 
 ifeq ($(shell pkg-config fuse && echo found), found)
 	binaries += tux3fuse
@@ -37,7 +37,7 @@ btreedeps	= balloc-dummy.c kernel/btree.c
 commitdeps	= $(inodedeps)
 dirdeps		= dir.c kernel/dir.c
 dleafdeps	= balloc-dummy.c kernel/dleaf.c
-filemapdeps	= $(dirdeps) kernel/log.c kernel/xattr.c kernel/dleaf.c \
+filemapdeps	= $(dirdeps) $(dedupdeps) kernel/log.c kernel/xattr.c kernel/dleaf.c \
 	kernel/btree.c kernel/iattr.c kernel/ileaf.c kernel/balloc.c \
 	filemap.c kernel/filemap.c
 iattrdeps	= btree-dummy.c kernel/iattr.c
@@ -47,6 +47,7 @@ ileafdeps	= balloc-dummy.c $(xattrcommondeps)
 inodedeps	= $(filemapdeps) inode.c kernel/inode.c super.c
 superdeps	= $(inodedeps) kernel/commit.c super.c kernel/super.c
 xattrdeps	= kernel/balloc.c $(xattrcommondeps)
+dedupdeps	= kernel/dedup.c dedup.c
 
 all: $(binaries)
 tests: buffertest balloctest committest dleaftest ileaftest btreetest dirtest iattrtest xattrtest filemaptest inodetest
@@ -66,6 +67,7 @@ iattr.o: $(basedeps) $(iattrdeps)
 ileaf.o: $(basedeps) $(ileafdeps)
 inode.o: $(basedeps) $(inodedeps)
 xattr.o:$(basedeps) $(xattrdeps)
+dedup.o: $(basedeps) $(dedupdeps)
 # programs
 tux3.o:$(basedeps) $(superdeps)
 tux3fuse.o:$(basedeps) $(superdeps)
@@ -82,6 +84,7 @@ xattr: vfs.o xattr.o
 inode: vfs.o inode.o
 filemap: vfs.o filemap.o
 commit: vfs.o commit.o
+dedup: vfs.o dedup.o
 
 .c.o:
 	$(CC) $(CFLAGS) -Dbuild_$(<:.c=) -c -o $@ $<

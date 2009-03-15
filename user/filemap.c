@@ -2,7 +2,7 @@
 #include "diskio.h"
 
 #ifndef trace
-#define trace trace_on
+#define trace trace_off
 #endif
 
 #include "kernel/log.c"
@@ -91,18 +91,36 @@ int filemap_extent_io(struct buffer_head *buffer, int write)
 	int err = 0;
 	for (int i = 0, index = start; !err && i < segs; i++) {
 		int hole = map[i].state == SEG_HOLE;
-		trace_on("extent 0x%Lx/%x => %Lx", (L)index, map[i].count, (L)map[i].block);
+		trace("extent 0x%Lx/%x => %Lx state => %Lx", (L)index, map[i].count, (L)map[i].block, (L)map[i].state);
 		for (int j = 0; !err && j < map[i].count; j++) {
 			block_t block = map[i].block + j;
 			buffer = blockget(mapping(inode), index + j);
-			trace_on("block 0x%Lx => %Lx", (L)bufindex(buffer), (L)block);
+			trace("block 0x%Lx => %Lx", (L)bufindex(buffer), (L)block);
 			if (write) {
-				err = diskwrite(dev->fd, bufdata(buffer), sb->blocksize, block << dev->bits);
-			} else {
+				if (map[i].state != SEG_DUP) /* DREAMZ */
+					err = diskwrite(dev->fd, bufdata(buffer), sb->blocksize, block << dev->bits);
+				else
+					warn("Duplicate block not written");					
+			}else {
 				if (hole)
 					memset(bufdata(buffer), 0, sb->blocksize);
-				else
+				else{
 					err = diskread(dev->fd, bufdata(buffer), sb->blocksize, block << dev->bits);
+					if(sb->readcheck == 1){
+						unsigned char *hash;
+						block_t blk;
+						struct buffer_head* buffer;
+						if( inode->inum > 4 && inode->inum != 10 && inode->inum != 13) {
+							buffer = (blockget(mapping(inode),start)); /* DREAMZ */
+							hash = (unsigned char *)malloc(sizeof(unsigned char) * SHA_DIGEST_LENGTH);
+							hash = SHA1(bufdata(buffer),inode->i_sb->blocksize,hash); 
+							brelse(buffer);
+							blk = hash_lookup(inode, hash);
+							if(blk != block)
+								return -EIO;
+						}
+					}
+				}
 			}
 			brelse(set_buffer_clean(buffer)); // leave empty if error ???
 		}

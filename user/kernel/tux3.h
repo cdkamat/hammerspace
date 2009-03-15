@@ -189,6 +189,7 @@ struct disksuper
 	be_u64 flags;		/* Need to assign some flags */
 	be_u64 iroot;		/* Root of the inode table btree */
 	be_u64 aroot;		/* The atime table is a file now, delete on next format rev */
+	be_u64 hroot;           /*Root of the hash btree DREAMZ */
 	be_u16 blockbits;	/* Shift to get volume block size */
 	be_u16 unused1;		/* Throw away on next format rev */
 	be_u32 unused2;		/* Throw away on next format rev */
@@ -251,6 +252,7 @@ struct sb {
 	struct disksuper super;
 	struct inode *volmap;	/* Volume metadata cache (like blockdev).
 				 * Note, ->btree is the btree for itable. */
+	struct btree htree;    /* Cached root of the hash table DREAMZ */
 	struct inode *bitmap;	/* allocation bitmap special file */
 	struct inode *rootdir;	/* root directory special file */
 	struct inode *vtable;	/* version table special file */
@@ -273,6 +275,8 @@ struct sb {
 	unsigned char *logpos, *logtop; /* Where to emit next log entry */
 	struct mutex loglock;	/* serialize log entries (spinlock me) */
 	struct stash defree;	/* defer extent frees until affer commit */
+	u16 entries_per_bucket; /*Number of entries per bucket */
+	int readcheck; /* Mount point flag for data integrity check */
 #ifdef __KERNEL__
 	struct super_block *vfs_sb; /* Generic kernel superblock */
 #else
@@ -356,6 +360,8 @@ typedef struct inode {
 	unsigned i_mode, i_uid, i_gid, i_nlink;
 	struct mutex i_mutex;
 	dev_t i_rdev;
+	block_t refbucket;      /* points to block number of current read bucket*/
+	block_t writebucket;    /* points to block number of current write bucket */
 } tuxnode_t;
 
 struct file {
@@ -694,6 +700,15 @@ int btree_leaf_split(struct btree *btree, struct cursor *cursor, tuxkey_t key);
 void *tree_expand(struct btree *btree, tuxkey_t key, unsigned newsize, struct cursor *cursor);
 void show_tree_range(struct btree *btree, tuxkey_t start, unsigned count);
 void show_tree(struct btree *btree);
+
+/* dedup.c */
+block_t bucket_lookup(struct inode *inode, unsigned char *hash);
+void make_hash_entry(struct inode *inode, unsigned char *hash, block_t block);
+void init_writebucket(struct inode *inode);
+block_t htree_lookup(struct inode *inode, struct btree *btree, u64 sh, unsigned char *hash);
+block_t handle_collision(struct inode* inode, struct bucket_entry* entry, struct hleaf_entry* temp ,unsigned char* hash, int first);
+block_t hash_lookup(struct inode *inode, unsigned char *hash);
+extern struct btree_ops htree_ops;
 
 /* dir.c */
 int tux_update_entry(struct buffer_head *buffer, tux_dirent *entry, inum_t inum, unsigned mode);
