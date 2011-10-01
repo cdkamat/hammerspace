@@ -2,7 +2,7 @@ This repository contains the src code for "Hammerspace - Data Deduplication for 
 
 Final year (BE Computer Engg.) undergraduate project (Pune University) by -  
 
-[Chinmay Kamat](http://github.com/cdkamat) , [Gaurav Tungatkar](http://sites.google.com/site/gtungatkar/home) , Kushal Dalmia and Amey Magar  
+[Chinmay Kamat](http://github.com/cdkamat) , [Gaurav Tungatkar](http://github.com/gtungatkar) , Kushal Dalmia and Amey Magar  
 
 Mentor : Amey Inamdar (Dreamz Group)
 
