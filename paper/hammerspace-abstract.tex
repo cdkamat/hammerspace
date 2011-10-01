@@ -1,0 +1,20 @@
+Continually growing storage farms, shrinking backup windows, increasing demand for nearly 
+instantaneous data restores and increasing operational costs are the consequences 
+of the increasing digital data. The increasing amount of data stored and backed up
+in data centres is a major concern. A keen observation is that most backup jobs only 
+hold a small percentage of really new data -- typically less than 5\%. The rest 
+is a duplicate of data that has remained unmodified from the previous backup. 
+The elimination of this duplicate data promises to reduce storage needs and 
+improve data restore times considerably. 
+
+Data deduplication is a method of reducing storage needs by eliminating redundant data. 
+Only one unique instance of the data is actually retained on storage media. Each subsequent instance is just referenced back to the one saved copy. 
+This paper proposes a block level data deduplication mechanism for btree based Linux file systems. 
+It describes a design which includes a Fingerprint Index and a Locality Based Bucket mechanism. 
+The Locality Based Bucket Layout and Fingerprint Index enable fast and efficient detection 
+and elimination of duplicate data blocks. The design is integrated into the file system and 
+does not require any application level intelligence.
+
+We have built a prototype of the system in the new Tux3 file system and present some preliminary results. 
+
+Index Terms -- Deduplication, Buckets, Fingerprints, Tux3.
