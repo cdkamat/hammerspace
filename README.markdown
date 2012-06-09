@@ -6,4 +6,4 @@ Final year (BE Computer Engg.) undergraduate project (Pune University) by -
 
 Mentor : Amey Inamdar (Dreamz Group)
 
-Details of the design and other discussions can be found on the Tux 3 mailing list [here](http://mailman.tux3.org/pipermail/tux3/2009-January/000669.html) and [here](http://mailman.tux3.org/pipermail/tux3/2009-February/000718.html).
+Details of the design and other discussions can be found on the Tux 3 mailing list [here](http://thread.gmane.org/gmane.comp.file-systems.tux3/660/) and [here](http://thread.gmane.org/gmane.comp.file-systems.tux3/709/).
